@@ -1162,7 +1162,7 @@ TOTAL=$((PASS + FAIL))
 echo -e "  Total:   $TOTAL testes"
 echo ""
 if [ $FAIL -eq 0 ] && [ $WARN -eq 0 ]; then
-	echo -e "${GREEN}${BOLD}  Tudo OK! Podes entregar com confiança.${NC}"
+	echo -e "${GREEN}${BOLD}  Tudo OK! ${NC}"
 elif [ $FAIL -eq 0 ]; then
 	echo -e "${YELLOW}${BOLD}  Sem falhas, mas há $WARN aviso(s) para verificar.${NC}"
 else
