@@ -93,7 +93,9 @@ ft_strlen ft_memset ft_bzero ft_memcpy ft_memmove ft_strlcpy ft_strlcat \
 ft_toupper ft_tolower ft_strchr ft_strrchr ft_strncmp ft_memchr ft_memcmp \
 ft_strnstr ft_atoi ft_calloc ft_strdup \
 ft_substr ft_strjoin ft_strtrim ft_split ft_itoa ft_strmapi ft_striteri \
-ft_putchar_fd ft_putstr_fd ft_putendl_fd ft_putnbr_fd"
+ft_putchar_fd ft_putstr_fd ft_putendl_fd ft_putnbr_fd \
+ft_lstnew ft_lstadd_front ft_lstsize ft_lstlast ft_lstadd_back \
+ft_lstdelone ft_lstclear ft_lstiter ft_lstmap"
 
 print_header "FICHEIROS OBRIGATÓRIOS"
 for func in $MANDATORY_FUNCS; do
@@ -872,6 +874,238 @@ hello
 world
 1
 hello"
+
+# ============================================================
+# PART 3 — LINKED LISTS
+# ============================================================
+print_header "PART 3 — ft_lstnew"
+
+compile_test "lstnew_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *node = ft_lstnew("hello");
+	if (!node) { printf("NULL\n"); return 0; }
+	printf("%s\n", (char *)node->content);
+	printf("%d\n", node->next == NULL);
+	free(node);
+	t_list *node2 = ft_lstnew(NULL);
+	printf("%d\n", node2 != NULL);
+	printf("%d\n", node2->content == NULL);
+	printf("%d\n", node2->next == NULL);
+	free(node2);
+}'
+run_test "lstnew_basic" "hello
+1
+1
+1
+1"
+
+print_header "PART 3 — ft_lstadd_front"
+
+compile_test "lstadd_front_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *lst = ft_lstnew("second");
+	t_list *node = ft_lstnew("first");
+	ft_lstadd_front(&lst, node);
+	printf("%s\n", (char *)lst->content);
+	printf("%s\n", (char *)lst->next->content);
+	printf("%d\n", lst->next->next == NULL);
+	free(node);
+	free(lst->next);
+}'
+run_test "lstadd_front_basic" "first
+second
+1"
+
+print_header "PART 3 — ft_lstsize"
+
+compile_test "lstsize_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *a = ft_lstnew("a");
+	t_list *b = ft_lstnew("b");
+	t_list *c = ft_lstnew("c");
+	a->next = b;
+	b->next = c;
+	printf("%d\n", ft_lstsize(a));
+	printf("%d\n", ft_lstsize(NULL));
+	printf("%d\n", ft_lstsize(a->next));
+	free(a); free(b); free(c);
+}'
+run_test "lstsize_basic" "3
+0
+2"
+
+print_header "PART 3 — ft_lstlast"
+
+compile_test "lstlast_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *a = ft_lstnew("a");
+	t_list *b = ft_lstnew("b");
+	t_list *c = ft_lstnew("c");
+	a->next = b;
+	b->next = c;
+	t_list *last = ft_lstlast(a);
+	printf("%s\n", (char *)last->content);
+	printf("%d\n", last->next == NULL);
+	printf("%s\n", (char *)ft_lstlast(c)->content);
+	free(a); free(b); free(c);
+}'
+run_test "lstlast_basic" "c
+1
+c"
+
+print_header "PART 3 — ft_lstadd_back"
+
+compile_test "lstadd_back_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *lst = ft_lstnew("first");
+	t_list *b = ft_lstnew("second");
+	t_list *c = ft_lstnew("third");
+	ft_lstadd_back(&lst, b);
+	ft_lstadd_back(&lst, c);
+	printf("%s\n", (char *)lst->content);
+	printf("%s\n", (char *)lst->next->content);
+	printf("%s\n", (char *)lst->next->next->content);
+	printf("%d\n", lst->next->next->next == NULL);
+	free(lst); free(b); free(c);
+}'
+run_test "lstadd_back_basic" "first
+second
+third
+1"
+
+print_header "PART 3 — ft_lstdelone"
+
+compile_test "lstdelone_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static void del(void *content) { (void)content; }
+int main(void) {
+	t_list *a = ft_lstnew("a");
+	t_list *b = ft_lstnew("b");
+	a->next = b;
+	ft_lstdelone(a, del);
+	printf("%s\n", (char *)b->content);
+	printf("%d\n", b->next == NULL);
+	free(b);
+}'
+run_test "lstdelone_basic" "b
+1"
+
+print_header "PART 3 — ft_lstclear"
+
+compile_test "lstclear_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static void del(void *content) { (void)content; }
+int main(void) {
+	t_list *a = ft_lstnew("a");
+	t_list *b = ft_lstnew("b");
+	t_list *c = ft_lstnew("c");
+	a->next = b;
+	b->next = c;
+	ft_lstclear(&a, del);
+	printf("%d\n", a == NULL);
+}'
+run_test "lstclear_basic" "1"
+
+print_header "PART 3 — ft_lstiter"
+
+compile_test "lstiter_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static void print_content(void *content) {
+	printf("%s\n", (char *)content);
+}
+int main(void) {
+	t_list *a = ft_lstnew("hello");
+	t_list *b = ft_lstnew("world");
+	a->next = b;
+	ft_lstiter(a, print_content);
+	free(a); free(b);
+}'
+run_test "lstiter_basic" "hello
+world"
+
+print_header "PART 3 — ft_lstmap"
+
+compile_test "lstmap_basic" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static void *dup_content(void *content) {
+	return ft_strdup((char *)content);
+}
+static void del(void *content) { free(content); }
+int main(void) {
+	t_list *a = ft_lstnew("hello");
+	t_list *b = ft_lstnew("world");
+	a->next = b;
+	t_list *new = ft_lstmap(a, dup_content, del);
+	printf("%s\n", (char *)new->content);
+	printf("%s\n", (char *)new->next->content);
+	printf("%d\n", new->next->next == NULL);
+	printf("%d\n", new->content != a->content);
+	ft_lstclear(&new, del);
+	free(a); free(b);
+}'
+run_test "lstmap_basic" "hello
+world
+1
+1"
+
+# Valgrind linked lists
+if command -v valgrind &> /dev/null; then
+	print_header "MEMORY LEAKS — Linked Lists"
+
+	compile_test "valgrind_lstclear" '#include "libft.h"
+#include <stdlib.h>
+static void del(void *c) { (void)c; }
+int main(void) {
+	t_list *a = ft_lstnew("a");
+	t_list *b = ft_lstnew("b");
+	t_list *c = ft_lstnew("c");
+	a->next = b; b->next = c;
+	ft_lstclear(&a, del);
+	return 0;
+}'
+
+	VALGRIND_OUT=$(valgrind --leak-check=full --error-exitcode=1 "$TMP_DIR/valgrind_lstclear" 2>&1)
+	if [ $? -eq 0 ]; then
+		print_test "ft_lstclear — sem leaks" "OK"
+	else
+		print_test "ft_lstclear — sem leaks" "KO" "memory leak — não estás a libertar todos os nós"
+	fi
+
+	compile_test "valgrind_lstmap" '#include "libft.h"
+#include <stdlib.h>
+static void *dup(void *c) { return ft_strdup((char *)c); }
+static void del(void *c) { free(c); }
+int main(void) {
+	t_list *a = ft_lstnew("a");
+	t_list *b = ft_lstnew("b");
+	a->next = b;
+	t_list *new = ft_lstmap(a, dup, del);
+	ft_lstclear(&new, del);
+	free(a); free(b);
+	return 0;
+}'
+
+	VALGRIND_OUT=$(valgrind --leak-check=full --error-exitcode=1 "$TMP_DIR/valgrind_lstmap" 2>&1)
+	if [ $? -eq 0 ]; then
+		print_test "ft_lstmap — sem leaks" "OK"
+	else
+		print_test "ft_lstmap — sem leaks" "KO" "memory leak — verifica ft_lstmap e ft_lstclear"
+	fi
+fi
 
 # ============================================================
 # VALGRIND (se disponível)

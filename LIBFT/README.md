@@ -1,6 +1,6 @@
 # libft_tester
 
-Tester para o projecto Libft da 42. Testa estrutura, Norminette, compilação e todas as funções da Part 1 e Part 2.
+Tester para o projecto Libft da 42. Testa estrutura, Norminette, compilação e todas as funções da Part 1, Part 2 e Part 3 (linked lists).
 
 ---
 
@@ -14,8 +14,6 @@ Tester para o projecto Libft da 42. Testa estrutura, Norminette, compilação e 
 ---
 
 ## Como usar
-
-Copia o ficheiro `libft_tester.sh` para qualquer lugar e corre:
 
 ```bash
 bash libft_tester.sh /caminho/para/tua/libft
@@ -32,19 +30,18 @@ bash libft_tester.sh .
 ## O que testa
 
 **Estrutura**
-- Existência de `libft.h`, `Makefile` e todos os `ft_*.c` obrigatórios
+- Existência de `libft.h`, `Makefile` e todos os `ft_*.c` obrigatórios (Part 1, 2 e 3)
 - Regras do Makefile: `all`, `clean`, `fclean`, `re`, `NAME`
 - Flags `-Wall -Wextra -Werror` e uso de `ar`
 
 **Norminette**
-- Se instalada, corre directamente e reporta erros
-- Se não instalada, verifica variáveis globais e linhas por função
+- Se instalada, corre directamente e mostra ficheiro + linha de cada erro
+- Se não instalada, verifica variáveis globais e linhas por função manualmente
 
 **Compilação**
-- `make` compila sem erros
+- `make` compila sem erros — mostra as linhas de erro relevantes se falhar
 - `make clean` não apaga `libft.a`
 - `make fclean` apaga `libft.a`
-- `libft.a` é gerado correctamente
 
 **Funções — Part 1**
 `ft_isalpha` `ft_isdigit` `ft_isalnum` `ft_isascii` `ft_isprint`
@@ -58,25 +55,43 @@ bash libft_tester.sh .
 `ft_substr` `ft_strjoin` `ft_strtrim` `ft_itoa` `ft_strmapi`
 `ft_striteri` `ft_split`
 
+**Funções — Part 3 (Linked Lists)**
+`ft_lstnew` `ft_lstadd_front` `ft_lstsize` `ft_lstlast`
+`ft_lstadd_back` `ft_lstdelone` `ft_lstclear` `ft_lstiter` `ft_lstmap`
+
 **Memory leaks** (se Valgrind disponível)
-- `ft_strdup` e `ft_split` sem leaks
+- `ft_strdup`, `ft_split`, `ft_lstclear`, `ft_lstmap` sem leaks
 
 ---
 
 ## Output
 
 ```
-[OK]   ft_strlen — compila e passa
-[KO]   ft_strncmp — esperado='1' obtido='0'
+[OK]   ft_strlen
+[KO]   ft_strncmp — linha 3 errada — esperado='1' obtido='0'
 [WARN] Norminette — não instalada
 ```
 
-No final mostra o total de testes passados, falhados e avisos.
+---
+
+## Erros explicados
+
+| Mensagem | Causa | Como corrigir |
+|---|---|---|
+| `função não implementada ou não compilada: ft_X` | `ft_X.c` não está no Makefile ou o ficheiro não existe | Verifica o SRCS no Makefile |
+| `função não declarada no header: ft_X` | Falta o protótipo de `ft_X` no `libft.h` | Adiciona o protótipo ao header |
+| `TIMEOUT (>5s)` | Loop infinito — o programa não termina | Verifica condições de paragem dos loops |
+| `SEGFAULT` | Acesso a ponteiro NULL ou fora dos limites | Verifica se NULL é tratado antes de desreferenciar |
+| `ABORT` | Double free ou corrupção do heap | Verifica se estás a libertar memória mais do que uma vez |
+| `linha N errada` | Output da função diferente do esperado | A lógica da função está incorrecta nesse caso |
+| `número de linhas errado` | A função imprime mais ou menos do que devia | Verifica loops e condições de saída |
+| `memory leak detectado` | Malloc sem free correspondente | Usa valgrind directamente para ver qual alocação não foi libertada |
 
 ---
 
 ## Notas
 
 - O tester não modifica nenhum ficheiro da tua libft
-- Funções não implementadas causam erro de compilação e saltam o teste
+- Funções não implementadas aparecem como erro de compilação com o nome da função em falta
 - Corre `make fclean` na tua libft antes se tiveres `.o` antigos
+- Os testes da Part 3 requerem a `t_list` struct definida no `libft.h`
