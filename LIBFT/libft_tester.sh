@@ -98,12 +98,16 @@ ft_lstnew ft_lstadd_front ft_lstsize ft_lstlast ft_lstadd_back \
 ft_lstdelone ft_lstclear ft_lstiter ft_lstmap"
 
 print_header "FICHEIROS OBRIGATÓRIOS"
+file_num=1
 for func in $MANDATORY_FUNCS; do
 	if [ -f "$LIBFT_PATH/${func}.c" ]; then
-		print_test "${func}.c existe" "OK"
+		printf "  ${GREEN}[OK]${NC}   %2d. %s.c\n" "$file_num" "$func"
+		((PASS++))
 	else
-		print_test "${func}.c existe" "KO" "ficheiro não encontrado"
+		printf "  ${RED}[KO]${NC}   %2d. %s.c — ficheiro não encontrado\n" "$file_num" "$func"
+		((FAIL++))
 	fi
+	((file_num++))
 done
 
 # ============================================================
@@ -884,16 +888,21 @@ compile_test "lstnew_basic" '#include "libft.h"
 #include <stdio.h>
 #include <stdlib.h>
 int main(void) {
-	t_list *node = ft_lstnew("hello");
-	if (!node) { printf("NULL\n"); return 0; }
+	t_list *node;
+	node = ft_lstnew("hello");
+	if (!node) { printf("NULL\n"); return 1; }
 	printf("%s\n", (char *)node->content);
 	printf("%d\n", node->next == NULL);
 	free(node);
-	t_list *node2 = ft_lstnew(NULL);
-	printf("%d\n", node2 != NULL);
-	printf("%d\n", node2->content == NULL);
-	printf("%d\n", node2->next == NULL);
-	free(node2);
+	node = ft_lstnew(NULL);
+	if (!node) { printf("NULL\n"); return 1; }
+	printf("%d\n", node->content == NULL);
+	printf("%d\n", node->next == NULL);
+	free(node);
+	node = ft_lstnew("");
+	if (!node) { printf("NULL\n"); return 1; }
+	printf("%d\n", node->content != NULL);
+	free(node);
 }'
 run_test "lstnew_basic" "hello
 1
@@ -907,17 +916,63 @@ compile_test "lstadd_front_basic" '#include "libft.h"
 #include <stdio.h>
 #include <stdlib.h>
 int main(void) {
-	t_list *lst = ft_lstnew("second");
-	t_list *node = ft_lstnew("first");
-	ft_lstadd_front(&lst, node);
+	t_list *second;
+	t_list *first;
+	t_list *lst;
+	second = ft_lstnew("second");
+	first = ft_lstnew("first");
+	lst = second;
+	ft_lstadd_front(&lst, first);
 	printf("%s\n", (char *)lst->content);
 	printf("%s\n", (char *)lst->next->content);
 	printf("%d\n", lst->next->next == NULL);
-	free(node);
-	free(lst->next);
+	free(first);
+	free(second);
 }'
 run_test "lstadd_front_basic" "first
 second
+1"
+
+compile_test "lstadd_front_null" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *lst;
+	t_list *node;
+	lst = NULL;
+	node = ft_lstnew("only");
+	ft_lstadd_front(&lst, node);
+	printf("%s\n", (char *)lst->content);
+	printf("%d\n", lst->next == NULL);
+	free(node);
+}'
+run_test "lstadd_front_null" "only
+1"
+
+compile_test "lstadd_front_multiple" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *lst;
+	t_list *a;
+	t_list *b;
+	t_list *c;
+	lst = NULL;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
+	c = ft_lstnew("c");
+	ft_lstadd_front(&lst, a);
+	ft_lstadd_front(&lst, b);
+	ft_lstadd_front(&lst, c);
+	printf("%s\n", (char *)lst->content);
+	printf("%s\n", (char *)lst->next->content);
+	printf("%s\n", (char *)lst->next->next->content);
+	printf("%d\n", lst->next->next->next == NULL);
+	free(a); free(b); free(c);
+}'
+run_test "lstadd_front_multiple" "c
+b
+a
 1"
 
 print_header "PART 3 — ft_lstsize"
@@ -926,19 +981,24 @@ compile_test "lstsize_basic" '#include "libft.h"
 #include <stdio.h>
 #include <stdlib.h>
 int main(void) {
-	t_list *a = ft_lstnew("a");
-	t_list *b = ft_lstnew("b");
-	t_list *c = ft_lstnew("c");
+	t_list *a;
+	t_list *b;
+	t_list *c;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
+	c = ft_lstnew("c");
 	a->next = b;
 	b->next = c;
 	printf("%d\n", ft_lstsize(a));
 	printf("%d\n", ft_lstsize(NULL));
-	printf("%d\n", ft_lstsize(a->next));
+	printf("%d\n", ft_lstsize(b));
+	printf("%d\n", ft_lstsize(c));
 	free(a); free(b); free(c);
 }'
 run_test "lstsize_basic" "3
 0
-2"
+2
+1"
 
 print_header "PART 3 — ft_lstlast"
 
@@ -946,19 +1006,27 @@ compile_test "lstlast_basic" '#include "libft.h"
 #include <stdio.h>
 #include <stdlib.h>
 int main(void) {
-	t_list *a = ft_lstnew("a");
-	t_list *b = ft_lstnew("b");
-	t_list *c = ft_lstnew("c");
+	t_list *a;
+	t_list *b;
+	t_list *c;
+	t_list *last;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
+	c = ft_lstnew("c");
 	a->next = b;
 	b->next = c;
-	t_list *last = ft_lstlast(a);
+	last = ft_lstlast(a);
 	printf("%s\n", (char *)last->content);
 	printf("%d\n", last->next == NULL);
-	printf("%s\n", (char *)ft_lstlast(c)->content);
+	last = ft_lstlast(c);
+	printf("%s\n", (char *)last->content);
+	last = ft_lstlast(a->next);
+	printf("%s\n", (char *)last->content);
 	free(a); free(b); free(c);
 }'
 run_test "lstlast_basic" "c
 1
+c
 c"
 
 print_header "PART 3 — ft_lstadd_back"
@@ -967,9 +1035,12 @@ compile_test "lstadd_back_basic" '#include "libft.h"
 #include <stdio.h>
 #include <stdlib.h>
 int main(void) {
-	t_list *lst = ft_lstnew("first");
-	t_list *b = ft_lstnew("second");
-	t_list *c = ft_lstnew("third");
+	t_list *lst;
+	t_list *b;
+	t_list *c;
+	lst = ft_lstnew("first");
+	b = ft_lstnew("second");
+	c = ft_lstnew("third");
 	ft_lstadd_back(&lst, b);
 	ft_lstadd_back(&lst, c);
 	printf("%s\n", (char *)lst->content);
@@ -983,6 +1054,22 @@ second
 third
 1"
 
+compile_test "lstadd_back_null" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+	t_list *lst;
+	t_list *node;
+	lst = NULL;
+	node = ft_lstnew("only");
+	ft_lstadd_back(&lst, node);
+	printf("%s\n", (char *)lst->content);
+	printf("%d\n", lst->next == NULL);
+	free(node);
+}'
+run_test "lstadd_back_null" "only
+1"
+
 print_header "PART 3 — ft_lstdelone"
 
 compile_test "lstdelone_basic" '#include "libft.h"
@@ -990,8 +1077,10 @@ compile_test "lstdelone_basic" '#include "libft.h"
 #include <stdlib.h>
 static void del(void *content) { (void)content; }
 int main(void) {
-	t_list *a = ft_lstnew("a");
-	t_list *b = ft_lstnew("b");
+	t_list *a;
+	t_list *b;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
 	a->next = b;
 	ft_lstdelone(a, del);
 	printf("%s\n", (char *)b->content);
@@ -1001,6 +1090,19 @@ int main(void) {
 run_test "lstdelone_basic" "b
 1"
 
+compile_test "lstdelone_del_called" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static int del_count = 0;
+static void del(void *content) { (void)content; del_count++; }
+int main(void) {
+	t_list *a;
+	a = ft_lstnew("x");
+	ft_lstdelone(a, del);
+	printf("%d\n", del_count);
+}'
+run_test "lstdelone_del_called" "1"
+
 print_header "PART 3 — ft_lstclear"
 
 compile_test "lstclear_basic" '#include "libft.h"
@@ -1008,15 +1110,49 @@ compile_test "lstclear_basic" '#include "libft.h"
 #include <stdlib.h>
 static void del(void *content) { (void)content; }
 int main(void) {
-	t_list *a = ft_lstnew("a");
-	t_list *b = ft_lstnew("b");
-	t_list *c = ft_lstnew("c");
+	t_list *a;
+	t_list *b;
+	t_list *c;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
+	c = ft_lstnew("c");
 	a->next = b;
 	b->next = c;
 	ft_lstclear(&a, del);
 	printf("%d\n", a == NULL);
 }'
 run_test "lstclear_basic" "1"
+
+compile_test "lstclear_null" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static void del(void *content) { (void)content; }
+int main(void) {
+	t_list *lst;
+	lst = NULL;
+	ft_lstclear(&lst, del);
+	printf("%d\n", lst == NULL);
+}'
+run_test "lstclear_null" "1"
+
+compile_test "lstclear_del_all" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static int del_count = 0;
+static void del(void *content) { (void)content; del_count++; }
+int main(void) {
+	t_list *a;
+	t_list *b;
+	t_list *c;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
+	c = ft_lstnew("c");
+	a->next = b;
+	b->next = c;
+	ft_lstclear(&a, del);
+	printf("%d\n", del_count);
+}'
+run_test "lstclear_del_all" "3"
 
 print_header "PART 3 — ft_lstiter"
 
@@ -1027,14 +1163,31 @@ static void print_content(void *content) {
 	printf("%s\n", (char *)content);
 }
 int main(void) {
-	t_list *a = ft_lstnew("hello");
-	t_list *b = ft_lstnew("world");
+	t_list *a;
+	t_list *b;
+	t_list *c;
+	a = ft_lstnew("hello");
+	b = ft_lstnew("world");
+	c = ft_lstnew("42");
 	a->next = b;
+	b->next = c;
 	ft_lstiter(a, print_content);
-	free(a); free(b);
+	free(a); free(b); free(c);
 }'
 run_test "lstiter_basic" "hello
-world"
+world
+42"
+
+compile_test "lstiter_null" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static int count = 0;
+static void counter(void *content) { (void)content; count++; }
+int main(void) {
+	ft_lstiter(NULL, counter);
+	printf("%d\n", count);
+}'
+run_test "lstiter_null" "0"
 
 print_header "PART 3 — ft_lstmap"
 
@@ -1046,21 +1199,39 @@ static void *dup_content(void *content) {
 }
 static void del(void *content) { free(content); }
 int main(void) {
-	t_list *a = ft_lstnew("hello");
-	t_list *b = ft_lstnew("world");
+	t_list *a;
+	t_list *b;
+	t_list *mapped;
+	a = ft_lstnew("hello");
+	b = ft_lstnew("world");
 	a->next = b;
-	t_list *new = ft_lstmap(a, dup_content, del);
-	printf("%s\n", (char *)new->content);
-	printf("%s\n", (char *)new->next->content);
-	printf("%d\n", new->next->next == NULL);
-	printf("%d\n", new->content != a->content);
-	ft_lstclear(&new, del);
+	mapped = ft_lstmap(a, dup_content, del);
+	if (!mapped) { printf("NULL\n"); free(a); free(b); return 1; }
+	printf("%s\n", (char *)mapped->content);
+	printf("%s\n", (char *)mapped->next->content);
+	printf("%d\n", mapped->next->next == NULL);
+	printf("%d\n", mapped->content != a->content);
+	ft_lstclear(&mapped, del);
 	free(a); free(b);
 }'
 run_test "lstmap_basic" "hello
 world
 1
 1"
+
+compile_test "lstmap_null" '#include "libft.h"
+#include <stdio.h>
+#include <stdlib.h>
+static void *dup_content(void *content) {
+	return ft_strdup((char *)content);
+}
+static void del(void *content) { free(content); }
+int main(void) {
+	t_list *mapped;
+	mapped = ft_lstmap(NULL, dup_content, del);
+	printf("%d\n", mapped == NULL);
+}'
+run_test "lstmap_null" "1"
 
 # Valgrind linked lists
 if command -v valgrind &> /dev/null; then
@@ -1162,7 +1333,7 @@ TOTAL=$((PASS + FAIL))
 echo -e "  Total:   $TOTAL testes"
 echo ""
 if [ $FAIL -eq 0 ] && [ $WARN -eq 0 ]; then
-	echo -e "${GREEN}${BOLD}  Tudo OK! ${NC}"
+	echo -e "${GREEN}${BOLD}  Tudo OK! Podes entregar com confiança.${NC}"
 elif [ $FAIL -eq 0 ]; then
 	echo -e "${YELLOW}${BOLD}  Sem falhas, mas há $WARN aviso(s) para verificar.${NC}"
 else

@@ -30,7 +30,7 @@ bash libft_tester.sh .
 ## O que testa
 
 **Estrutura**
-- Existência de `libft.h`, `Makefile` e todos os `ft_*.c` obrigatórios (Part 1, 2 e 3)
+- Todos os ficheiros `ft_*.c` obrigatórios listados e numerados
 - Regras do Makefile: `all`, `clean`, `fclean`, `re`, `NAME`
 - Flags `-Wall -Wextra -Werror` e uso de `ar`
 
@@ -59,6 +59,8 @@ bash libft_tester.sh .
 `ft_lstnew` `ft_lstadd_front` `ft_lstsize` `ft_lstlast`
 `ft_lstadd_back` `ft_lstdelone` `ft_lstclear` `ft_lstiter` `ft_lstmap`
 
+Cada função de linked list tem múltiplos testes — casos normais, lista vazia, `NULL`, e comportamentos específicos como verificar se `del` é chamada o número certo de vezes.
+
 **Memory leaks** (se Valgrind disponível)
 - `ft_strdup`, `ft_split`, `ft_lstclear`, `ft_lstmap` sem leaks
 
@@ -67,6 +69,8 @@ bash libft_tester.sh .
 ## Output
 
 ```
+[OK]    1. ft_isalpha.c
+[KO]    2. ft_isdigit.c — ficheiro não encontrado
 [OK]   ft_strlen
 [KO]   ft_strncmp — linha 3 errada — esperado='1' obtido='0'
 [WARN] Norminette — não instalada
@@ -83,7 +87,7 @@ bash libft_tester.sh .
 | `TIMEOUT (>5s)` | Loop infinito — o programa não termina | Verifica condições de paragem dos loops |
 | `SEGFAULT` | Acesso a ponteiro NULL ou fora dos limites | Verifica se NULL é tratado antes de desreferenciar |
 | `ABORT` | Double free ou corrupção do heap | Verifica se estás a libertar memória mais do que uma vez |
-| `linha N errada` | Output da função diferente do esperado | A lógica da função está incorrecta nesse caso |
+| `linha N errada` | Output diferente do esperado nessa linha | A lógica da função está incorrecta nesse caso |
 | `número de linhas errado` | A função imprime mais ou menos do que devia | Verifica loops e condições de saída |
 | `memory leak detectado` | Malloc sem free correspondente | Usa valgrind directamente para ver qual alocação não foi libertada |
 
@@ -92,6 +96,6 @@ bash libft_tester.sh .
 ## Notas
 
 - O tester não modifica nenhum ficheiro da tua libft
-- Funções não implementadas aparecem como erro de compilação com o nome da função em falta
 - Corre `make fclean` na tua libft antes se tiveres `.o` antigos
 - Os testes da Part 3 requerem a `t_list` struct definida no `libft.h`
+- Os testes de linked lists usam variáveis separadas para cada nó — nunca acedes a memória já libertada
