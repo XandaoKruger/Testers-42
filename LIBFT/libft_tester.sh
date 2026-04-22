@@ -115,8 +115,10 @@ if command -v norminette &> /dev/null; then
 	if [ "$NORM_ERRORS" -eq 0 ]; then
 		print_test "Norminette — sem erros" "OK"
 	else
-		print_test "Norminette — $NORM_ERRORS erro(s)" "KO" "corre 'norminette' para ver detalhes"
-		echo "$NORM_OUTPUT" | grep "Error" | head -20
+		print_test "Norminette — $NORM_ERRORS erro(s) encontrado(s)" "KO" "detalhes abaixo"
+		echo ""
+		echo "$NORM_OUTPUT" | grep -A1 "Error" | grep -v "^--$" | sed 's/^/    /'
+		echo ""
 	fi
 else
 	print_test "Norminette" "WARN" "norminette não instalada — a verificar manualmente"
@@ -150,9 +152,12 @@ MAKE_EXIT=$?
 if [ $MAKE_EXIT -eq 0 ]; then
 	print_test "make — compila sem erros" "OK"
 else
-	print_test "make — compila sem erros" "KO" "erro de compilação"
-	echo "$MAKE_OUTPUT"
-	echo -e "${RED}Compilação falhou — não é possível continuar os testes.${NC}"
+	print_test "make — compila sem erros" "KO" "erro de compilação no make"
+	echo ""
+	echo -e "${RED}  Detalhes do erro:${NC}"
+	echo "$MAKE_OUTPUT" | grep -E "error:|undefined|warning:" | head -10 | sed 's/^/    /'
+	echo ""
+	echo -e "${RED}  Não é possível continuar — corrige os erros de compilação primeiro.${NC}"
 	exit 1
 fi
 
@@ -198,23 +203,76 @@ compile_test() {
 	local out="$TMP_DIR/$name"
 	echo "$src" > "$TMP_DIR/${name}.c"
 	$CC $CFLAGS "$TMP_DIR/${name}.c" "$LIBFT_A" -I"$LIBFT_PATH" -o "$out" 2>"$TMP_DIR/${name}.err"
-	echo $?
+	local exit_code=$?
+	if [ $exit_code -ne 0 ]; then
+		# Tenta perceber o motivo do erro de compilação
+		local err_output
+		err_output=$(cat "$TMP_DIR/${name}.err")
+		local reason=""
+		if echo "$err_output" | grep -q "undefined reference"; then
+			local missing
+			missing=$(echo "$err_output" | grep "undefined reference" | sed "s/.*\`\(.*\)'.*/\1/" | sort -u | tr '\n' ' ')
+			reason="função não implementada ou não compilada: $missing"
+		elif echo "$err_output" | grep -q "implicit declaration"; then
+			local missing
+			missing=$(echo "$err_output" | grep "implicit declaration" | sed "s/.*'\(.*\)'.*/\1/" | sort -u | tr '\n' ' ')
+			reason="função não declarada no header: $missing"
+		elif echo "$err_output" | grep -q "error:"; then
+			reason=$(echo "$err_output" | grep "error:" | head -1 | sed 's/.*error: //')
+		else
+			reason="erro de compilação desconhecido"
+		fi
+		print_test "$name" "KO" "não compilou — $reason"
+		((FAIL++))
+		return 1
+	fi
+	return 0
 }
 
 run_test() {
 	local name="$1"
 	local expected="$2"
 	local out="$TMP_DIR/$name"
+
+	# Verifica se o binário existe (compilação falhou antes)
+	if [ ! -f "$out" ]; then
+		return
+	fi
+
 	local result
-	result=$(timeout 5 "$out" 2>/dev/null)
+	result=$(timeout 5 "$out" 2>/tmp/run_stderr_$$)
 	local exit_code=$?
+
 	if [ $exit_code -eq 124 ]; then
-		print_test "$name" "KO" "TIMEOUT — loop infinito?"
+		print_test "$name" "KO" "TIMEOUT (>5s) — possível loop infinito ou deadlock"
+	elif [ $exit_code -eq 139 ]; then
+		print_test "$name" "KO" "SEGFAULT — acesso inválido à memória (ponteiro NULL? buffer overflow?)"
+	elif [ $exit_code -eq 134 ]; then
+		print_test "$name" "KO" "ABORT — double free ou heap corruption detectado"
 	elif [ "$result" = "$expected" ]; then
 		print_test "$name" "OK"
 	else
-		print_test "$name" "KO" "esperado='$expected' obtido='$result'"
+		# Dá detalhe sobre a diferença
+		local exp_lines
+		local got_lines
+		exp_lines=$(echo "$expected" | wc -l)
+		got_lines=$(echo "$result" | wc -l)
+		if [ "$exp_lines" != "$got_lines" ]; then
+			print_test "$name" "KO" "número de linhas errado — esperado $exp_lines linha(s), obtido $got_lines"
+		else
+			# Mostra a primeira linha diferente
+			local line_num=1
+			while IFS= read -r exp_line; do
+				got_line=$(echo "$result" | sed -n "${line_num}p")
+				if [ "$exp_line" != "$got_line" ]; then
+					print_test "$name" "KO" "linha $line_num errada — esperado='$exp_line' obtido='$got_line'"
+					break
+				fi
+				((line_num++))
+			done <<< "$expected"
+		fi
 	fi
+	rm -f /tmp/run_stderr_$$
 }
 
 # ============================================================
@@ -232,7 +290,7 @@ int main(void) {
 		ft_isalpha('"'"' '"'"') == 0,
 		ft_isalpha(0) == 0,
 		ft_isalpha(127) == 0);
-}' > /dev/null
+}'
 run_test "isalpha_basic" "1
 1
 1
@@ -248,7 +306,7 @@ int main(void) {
 		ft_isalpha('"'"'z'"'"') != 0,
 		ft_isalpha('"'"'9'"'"') == 0,
 		ft_isalpha('"'"'/'"'"') == 0);
-}' > /dev/null
+}'
 run_test "isalpha_bounds" "1
 1
 1
@@ -264,7 +322,7 @@ int main(void) {
 		ft_isdigit('"'"'9'"'"') != 0,
 		ft_isdigit('"'"'a'"'"') == 0,
 		ft_isdigit('"'"' '"'"') == 0);
-}' > /dev/null
+}'
 run_test "isdigit_basic" "1
 1
 1
@@ -281,7 +339,7 @@ int main(void) {
 		ft_isalnum('"'"'5'"'"') != 0,
 		ft_isalnum('"'"' '"'"') == 0,
 		ft_isalnum('"'"'\0'"'"') == 0);
-}' > /dev/null
+}'
 run_test "isalnum_basic" "1
 1
 1
@@ -299,7 +357,7 @@ int main(void) {
 		ft_isascii(128) == 0,
 		ft_isascii(-1) == 0,
 		ft_isascii('"'"'A'"'"') != 0);
-}' > /dev/null
+}'
 run_test "isascii_basic" "1
 1
 1
@@ -317,7 +375,7 @@ int main(void) {
 		ft_isprint(31) == 0,
 		ft_isprint(127) == 0,
 		ft_isprint('"'"'A'"'"') != 0);
-}' > /dev/null
+}'
 run_test "isprint_basic" "1
 1
 1
@@ -333,7 +391,7 @@ int main(void) {
 		ft_strlen("hello"),
 		ft_strlen(""),
 		ft_strlen("42Lisboa"));
-}' > /dev/null
+}'
 run_test "strlen_basic" "5
 0
 8"
@@ -348,7 +406,7 @@ int main(void) {
 		ft_toupper('"'"'z'"'"'),
 		ft_toupper('"'"'A'"'"'),
 		ft_toupper('"'"'1'"'"'));
-}' > /dev/null
+}'
 run_test "toupper_basic" "A
 Z
 A
@@ -362,7 +420,7 @@ int main(void) {
 		ft_tolower('"'"'Z'"'"'),
 		ft_tolower('"'"'a'"'"'),
 		ft_tolower('"'"'1'"'"'));
-}' > /dev/null
+}'
 run_test "tolower_basic" "a
 z
 a
@@ -383,7 +441,7 @@ int main(void) {
 	printf("%s\n", r ? r : "NULL");
 	r = ft_strchr(s, '"'"'\0'"'"');
 	printf("%d\n", r != NULL);
-}' > /dev/null
+}'
 run_test "strchr_basic" "anana
 banana
 NULL
@@ -400,7 +458,7 @@ int main(void) {
 	printf("%s\n", r ? r : "NULL");
 	r = ft_strrchr(s, '"'"'x'"'"');
 	printf("%s\n", r ? r : "NULL");
-}' > /dev/null
+}'
 run_test "strrchr_basic" "a
 banana
 NULL"
@@ -415,7 +473,7 @@ int main(void) {
 	printf("%d\n", ft_strncmp("abd", "abc", 3) > 0);
 	printf("%d\n", ft_strncmp("abc", "abd", 2) == 0);
 	printf("%d\n", ft_strncmp("abc", "abc", 0) == 0);
-}' > /dev/null
+}'
 run_test "strncmp_basic" "1
 1
 1
@@ -432,7 +490,7 @@ int main(void) {
 	printf("%s\n", buf);
 	ft_memset(buf, 0, 5);
 	printf("%d\n", buf[0] == 0);
-}' > /dev/null
+}'
 run_test "memset_basic" "xxxlo
 1"
 
@@ -443,7 +501,7 @@ int main(void) {
 	ft_bzero(buf, 4);
 	printf("%d\n%d\n%d\n%d\n",
 		buf[0] == 0, buf[1] == 0, buf[2] == 0, buf[3] == 0);
-}' > /dev/null
+}'
 run_test "bzero_basic" "1
 1
 1
@@ -460,7 +518,7 @@ int main(void) {
 	printf("%s\n", dst);
 	ft_memcpy(dst, src, 0);
 	printf("%s\n", dst);
-}' > /dev/null
+}'
 run_test "memcpy_basic" "hello
 hello"
 
@@ -470,7 +528,7 @@ int main(void) {
 	char buf[] = "memmove";
 	ft_memmove(buf + 2, buf, 5);
 	printf("%s\n", buf);
-}' > /dev/null
+}'
 run_test "memmove_overlap" "mememmo"
 
 print_header "PART 1 — ft_strlcpy / ft_strlcat"
@@ -486,7 +544,7 @@ int main(void) {
 	printf("%s\n%zu\n", dst, r);
 	r = ft_strlcpy(dst, "hello", 0);
 	printf("%zu\n", r);
-}' > /dev/null
+}'
 run_test "strlcpy_basic" "hello
 5
 he
@@ -500,7 +558,7 @@ int main(void) {
 	size_t r;
 	r = ft_strlcat(dst, " world", 20);
 	printf("%s\n%zu\n", dst, r);
-}' > /dev/null
+}'
 run_test "strlcat_basic" "hello world
 11"
 
@@ -518,7 +576,7 @@ int main(void) {
 	printf("%s\n", r ? r : "NULL");
 	r = ft_strnstr("banana", "nan", 2);
 	printf("%s\n", r ? r : "NULL");
-}' > /dev/null
+}'
 run_test "strnstr_basic" "nana
 NULL
 banana
@@ -537,7 +595,7 @@ int main(void) {
 	printf("%d\n", ft_atoi("42abc"));
 	printf("%d\n", ft_atoi("2147483647"));
 	printf("%d\n", ft_atoi("-2147483648"));
-}' > /dev/null
+}'
 run_test "atoi_basic" "42
 -42
 42
@@ -560,7 +618,7 @@ int main(void) {
 	printf("%d\n", r != NULL);
 	r = ft_memchr(s, '"'"'x'"'"', 5);
 	printf("%d\n", r == NULL);
-}' > /dev/null
+}'
 run_test "memchr_basic" "1
 1
 1"
@@ -572,7 +630,7 @@ int main(void) {
 	printf("%d\n", ft_memcmp("abc", "abd", 3) < 0);
 	printf("%d\n", ft_memcmp("abc", "abc", 0) == 0);
 	printf("%d\n", ft_memcmp("abc\0x", "abc\0y", 5) < 0);
-}' > /dev/null
+}'
 run_test "memcmp_basic" "1
 1
 1
@@ -591,7 +649,7 @@ int main(void) {
 	void *z = ft_calloc(0, 0);
 	printf("%d\n", z != NULL);
 	free(z);
-}' > /dev/null
+}'
 run_test "calloc_basic" "1
 1
 1
@@ -608,7 +666,7 @@ int main(void) {
 	char *e = ft_strdup("");
 	printf("%zu\n", ft_strlen(e));
 	free(e);
-}' > /dev/null
+}'
 run_test "strdup_basic" "hello
 1
 0"
@@ -622,20 +680,20 @@ compile_test "putchar_fd" '#include "libft.h"
 int main(void) {
 	ft_putchar_fd('"'"'A'"'"', 1);
 	ft_putchar_fd('"'"'\n'"'"', 1);
-}' > /dev/null
+}'
 run_test "putchar_fd" "A"
 
 compile_test "putstr_fd" '#include "libft.h"
 int main(void) {
 	ft_putstr_fd("hello", 1);
 	ft_putchar_fd('"'"'\n'"'"', 1);
-}' > /dev/null
+}'
 run_test "putstr_fd" "hello"
 
 compile_test "putendl_fd" '#include "libft.h"
 int main(void) {
 	ft_putendl_fd("hello", 1);
-}' > /dev/null
+}'
 run_test "putendl_fd" "hello"
 
 print_header "PART 2 — ft_putnbr_fd"
@@ -652,7 +710,7 @@ int main(void) {
 	ft_putchar_fd('"'"'\n'"'"', 1);
 	ft_putnbr_fd(-2147483648, 1);
 	ft_putchar_fd('"'"'\n'"'"', 1);
-}' > /dev/null
+}'
 run_test "putnbr_fd" "42
 -42
 0
@@ -676,7 +734,7 @@ int main(void) {
 	printf("[%s]\n", s); free(s);
 	s = ft_substr("banana", 0, 100);
 	printf("%s\n", s); free(s);
-}' > /dev/null
+}'
 run_test "substr_basic" "ban
 nan
 []
@@ -698,7 +756,7 @@ int main(void) {
 	printf("%s\n", s); free(s);
 	s = ft_strjoin("", "");
 	printf("[%s]\n", s); free(s);
-}' > /dev/null
+}'
 run_test "strjoin_basic" "hello world
 hello
 hello
@@ -723,7 +781,7 @@ int main(void) {
 	printf("[%s]\n", s); free(s);
 	s = ft_strtrim("xyhelloyx", "xy");
 	printf("%s\n", s); free(s);
-}' > /dev/null
+}'
 run_test "strtrim_basic" "hello
 hello
 hello
@@ -743,7 +801,7 @@ int main(void) {
 	s = ft_itoa(-42); printf("%s\n", s); free(s);
 	s = ft_itoa(2147483647); printf("%s\n", s); free(s);
 	s = ft_itoa(-2147483648); printf("%s\n", s); free(s);
-}' > /dev/null
+}'
 run_test "itoa_basic" "0
 42
 -42
@@ -765,7 +823,7 @@ int main(void) {
 	printf("%s\n", s); free(s);
 	s = ft_strmapi("", to_upper);
 	printf("[%s]\n", s); free(s);
-}' > /dev/null
+}'
 run_test "strmapi_basic" "HELLO
 []"
 
@@ -781,7 +839,7 @@ int main(void) {
 	char s[] = "hello";
 	ft_striteri(s, to_upper_i);
 	printf("%s\n", s);
-}' > /dev/null
+}'
 run_test "striteri_basic" "HELLO"
 
 print_header "PART 2 — ft_split"
@@ -806,7 +864,7 @@ int main(void) {
 	r = ft_split("hello", '"'"'x'"'"');
 	printf("%s\n", r[0]); free(r[0]);
 	free(r);
-}' > /dev/null
+}'
 run_test "split_basic" "hello
 world
 foo
@@ -827,7 +885,7 @@ int main(void) {
 	char *s = ft_strdup("test");
 	free(s);
 	return 0;
-}' > /dev/null
+}'
 
 	VALGRIND_OUT=$(valgrind --leak-check=full --error-exitcode=1 "$TMP_DIR/valgrind_strdup" 2>&1)
 	if [ $? -eq 0 ]; then
@@ -844,7 +902,7 @@ int main(void) {
 	while (r[i]) { free(r[i]); i++; }
 	free(r);
 	return 0;
-}' > /dev/null
+}'
 
 	VALGRIND_OUT=$(valgrind --leak-check=full --error-exitcode=1 "$TMP_DIR/valgrind_split" 2>&1)
 	if [ $? -eq 0 ]; then
@@ -869,10 +927,19 @@ echo -e "  ${YELLOW}Avisos:  $WARN${NC}"
 TOTAL=$((PASS + FAIL))
 echo -e "  Total:   $TOTAL testes"
 echo ""
-if [ $FAIL -eq 0 ]; then
+if [ $FAIL -eq 0 ] && [ $WARN -eq 0 ]; then
 	echo -e "${GREEN}${BOLD}  Tudo OK! Podes entregar com confiança.${NC}"
+elif [ $FAIL -eq 0 ]; then
+	echo -e "${YELLOW}${BOLD}  Sem falhas, mas há $WARN aviso(s) para verificar.${NC}"
 else
 	echo -e "${RED}${BOLD}  Há $FAIL teste(s) a falhar. Corrige antes de entregar.${NC}"
+	echo ""
+	echo -e "${BOLD}  Causas mais comuns de falha:${NC}"
+	echo -e "  • Função não implementada → erro de compilação 'undefined reference'"
+	echo -e "  • Função não declarada no header → 'implicit declaration'"
+	echo -e "  • Lógica errada → output diferente do esperado"
+	echo -e "  • Loop infinito → TIMEOUT"
+	echo -e "  • Acesso a ponteiro NULL → SEGFAULT"
 fi
 echo ""
 
