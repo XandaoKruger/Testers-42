@@ -1258,15 +1258,19 @@ int main(void) {
 
 	compile_test "valgrind_lstmap" '#include "libft.h"
 #include <stdlib.h>
-static void *dup(void *c) { return ft_strdup((char *)c); }
-static void del(void *c) { free(c); }
+static void *dup_str(void *c) { return ft_strdup((char *)c); }
+static void del_str(void *c) { free(c); }
 int main(void) {
-	t_list *a = ft_lstnew("a");
-	t_list *b = ft_lstnew("b");
+	t_list *a;
+	t_list *b;
+	t_list *mapped;
+	a = ft_lstnew("a");
+	b = ft_lstnew("b");
 	a->next = b;
-	t_list *new = ft_lstmap(a, dup, del);
-	ft_lstclear(&new, del);
-	free(a); free(b);
+	mapped = ft_lstmap(a, dup_str, del_str);
+	ft_lstclear(&mapped, del_str);
+	free(a);
+	free(b);
 	return 0;
 }'
 
